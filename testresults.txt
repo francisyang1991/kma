@@ -1,0 +1,94 @@
+rm -f kma_dummy kma_rm kma_p2fl kma_mck2 kma_bud kma_lzbud kma_competition kma_output.dat kma_output.png kma_waste.png
+rm -f *.o *~ *.gch `whoami`*.tar `whoami`*.tar.gz
+tar cvf `whoami`-`date +%Y%m%d%H%M%S`-kma.tar Makefile *.h *.c DOC
+Makefile
+kma.h
+kma_page.h
+kma.c
+kma_bud.c
+kma_dummy.c
+kma_lzbud.c
+kma_mck2.c
+kma_p2fl.c
+kma_page.c
+kma_rm.c
+DOC
+gzip `whoami`-`date +%Y%m%d%H%M%S`-kma.tar
+HANDIN=`pwd`/`whoami`-`date +%Y%m%d%H%M%S`-kma.tar.gz;\
+	cd testsuite;\
+	bash ./run_testcase.sh ${HANDIN};
+Testing /home/eric/eecs343/kma/skeleton/eric-20141021223921-kma.tar.gz
+
+UNTAR
+Makefile
+kma.h
+kma_page.h
+kma.c
+kma_bud.c
+kma_dummy.c
+kma_lzbud.c
+kma_mck2.c
+kma_p2fl.c
+kma_page.c
+kma_rm.c
+DOC
+
+SETUP
+COMPILE
+compiling KMA_RM
+compiling KMA_BUD
+compiling KMA_P2FL
+compiling KMA_LZBUD
+compiling KMA_MCK2
+0 warning(s) found while compiling
+0 error(s) found while compiling
+
+TESTING REQUIRED ALGORITHMS
+KMA_RM
+Trace 1.trace: PASSED
+Trace 2.trace: PASSED
+Trace 3.trace: PASSED
+Trace 4.trace: PASSED
+Trace 5.trace: PASSED
+Algorithm KMA_RM: PASSED
+
+KMA_BUD
+Trace 1.trace failed. Tail of output follows
+...
+ERROR: got NULL from kma_malloc for alloc'able request: .
+./KMA_BUD: Running in correctness mode
+Test: FAILED
+Algorithm KMA_BUD: FAILED
+
+TESTING EXTRA CREDIT ALGORITHMS
+KMA_P2FL
+Trace 1.trace failed. Tail of output follows
+...
+ERROR: got NULL from kma_malloc for alloc'able request: .
+./KMA_P2FL: Running in correctness mode
+Test: FAILED
+Algorithm KMA_P2FL: FAILED
+
+KMA_LZBUD
+Trace 1.trace failed. Tail of output follows
+...
+ERROR: got NULL from kma_malloc for alloc'able request: .
+./KMA_LZBUD: Running in correctness mode
+Test: FAILED
+Algorithm KMA_LZBUD: FAILED
+
+KMA_MCK2
+Trace 1.trace failed. Tail of output follows
+...
+ERROR: got NULL from kma_malloc for alloc'able request: .
+./KMA_MCK2: Running in correctness mode
+Test: FAILED
+Algorithm KMA_MCK2: FAILED
+
+MALLOC USAGE
+
+COMPETITION: running KMA_DUMMY on 5.trace
+Competition binary failed to complete the trace. Tail of output follows...
+
+bash: ./kma_competition: No such file or directory
+
