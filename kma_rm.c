@@ -206,11 +206,12 @@ void addtofreelist(void *ptr, int size)
 		int newblocksize = ((freeblockll_t*) ptr)->size;			//size fo block to be added
 		void* nextblock = (void *) ((long) ptr + newblocksize); //pointer to adjacent block of memory
 		//check if adjacent block is in list, coalesce blocks if it is
-		if ((nextblock == temp) /*&& (((freeblockll_t*) nextblock)->pageid == ((freeblockll_t*)temp)->pageid)*/)
+		if ((nextblock == temp) && (((freeblockll_t*) nextblock)->pageid == ((freeblockll_t*)temp)->pageid))
 		{
 			if (((freeblockll_t*) (mainpage->header))->next == NULL)
 			{
-				((freeblockll_t* )ptr)->size += ((freeblockll_t*) (mainpage->header))->size;				
+				((freeblockll_t* )ptr)->size += ((freeblockll_t*) (mainpage->header))->size;		
+				((freeblockll_t* )ptr)->next = NULL;						
 				mainpage->header = (freeblockll_t*)ptr;	//set header to new ptr							
 			}
 			else
@@ -242,7 +243,7 @@ void addtofreelist(void *ptr, int size)
 		void *nextblock = (void *) ((long) temp + blocksize);	//pointer to adjacent block of memory
 
 		//if new block is next to old block, coalesce adjacent free blocks
-		if ((nextblock == ptr) /*&& (((freeblockll_t*)nextblock)->pageid == ((freeblockll_t*)ptr)->pageid)*/)
+		if ((nextblock == ptr) && (((freeblockll_t*)nextblock)->pageid == ((freeblockll_t*)ptr)->pageid))
 		{
 			((freeblockll_t*) temp)->size = blocksize + ((freeblockll_t*)ptr)->size;
 
