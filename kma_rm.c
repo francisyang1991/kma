@@ -206,14 +206,21 @@ void addtofreelist(void *ptr, int size)
 		int newblocksize = ((freeblockll_t*) ptr)->size;			//size fo block to be added
 		void* nextblock = (void *) ((long) ptr + newblocksize); //pointer to adjacent block of memory
 		//check if adjacent block is in list, coalesce blocks if it is
-		if (((freeblockll_t*) (mainpage->header))->next != NULL && (nextblock == temp) && (((freeblockll_t*) nextblock)->pageid == ((freeblockll_t*)temp)->pageid))
+		if ((nextblock == temp) /*&& (((freeblockll_t*) nextblock)->pageid == ((freeblockll_t*)temp)->pageid)*/)
 		{
-
-			freeblockll_t *newnext = ((freeblockll_t*) (mainpage->header))->next;
-			newnext->prev = ptr;
-			((freeblockll_t* )ptr)->next = newnext;
-			((freeblockll_t* )ptr)->size += ((freeblockll_t*) (mainpage->header))->size;			
-			mainpage->header = (freeblockll_t *)ptr;
+			if (((freeblockll_t*) (mainpage->header))->next == NULL)
+			{
+				((freeblockll_t* )ptr)->size += ((freeblockll_t*) (mainpage->header))->size;				
+				mainpage->header = (freeblockll_t*)ptr;	//set header to new ptr							
+			}
+			else
+			{
+				freeblockll_t *newnext = ((freeblockll_t*) (mainpage->header))->next;
+				newnext->prev = ptr;
+				((freeblockll_t* )ptr)->next = newnext;
+				((freeblockll_t* )ptr)->size += ((freeblockll_t*) (mainpage->header))->size;			
+				mainpage->header = (freeblockll_t *)ptr;
+			}
 		}
 		else		//add block to list, set as new header
 		{
@@ -221,7 +228,6 @@ void addtofreelist(void *ptr, int size)
 			((freeblockll_t*)ptr)->next = ((freeblockll_t*)(mainpage->header));
 			mainpage->header = (freeblockll_t*)ptr;	//set header to new ptr
 		}
-		
 	}
 	else 
 	{	//else find where to add by searching the list
@@ -236,7 +242,7 @@ void addtofreelist(void *ptr, int size)
 		void *nextblock = (void *) ((long) temp + blocksize);	//pointer to adjacent block of memory
 
 		//if new block is next to old block, coalesce adjacent free blocks
-		if ((nextblock == ptr) && (((freeblockll_t*)nextblock)->pageid == ((freeblockll_t*)ptr)->pageid))
+		if ((nextblock == ptr) /*&& (((freeblockll_t*)nextblock)->pageid == ((freeblockll_t*)ptr)->pageid)*/)
 		{
 			((freeblockll_t*) temp)->size = blocksize + ((freeblockll_t*)ptr)->size;
 
