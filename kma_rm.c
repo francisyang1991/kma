@@ -25,7 +25,7 @@
  *    - skeleton
  *
  *    Revision 1.2  2004/11/05 15:45:56  sbirrer
- *    - added size as a parameter to kma_free
+ *    - addtofreelisted size as a parameter to kma_free
  *
  *    Revision 1.1  2004/11/03 23:04:03  sbirrer
  *    - initial version for the kernel memory allocator project
@@ -73,10 +73,10 @@ typedef struct
 kma_page_t *entryptr = 0;		//entry ptr
 /************Function Prototypes******************************************/
 void *findfirstfit(int size);		//return pointer to free space using first fit
-void add (void* ptr, int size);	//adds pointer to free space 
-void resolve(void);	//looks for pages being used with no allocated blocks and frees those pages
+void addtofreelist (void* ptr, int size);	//addtofreelists pointer to free space 
+void freeunalloc(void);	//looks for pages being used with no allocated blocks and frees those pages
 void remove(void *ptr);	//remove pointer from list
-kma_page_t *initial(kma_page_t* page, int first);	//initialize page
+void initial(kma_page_t* page, int first);	//initialize page
 
 /************External Declaration*****************************************/
 
@@ -108,16 +108,16 @@ kma_malloc(kma_size_t size)
 void
 kma_free(void* ptr, kma_size_t size)
 {
-	//add ptr to list
-  add(ptr, size);
+	//addtofreelist ptr to list
+  addtofreelist(ptr, size);
   //decrement number of allocated blocks on that page
   (((llheader_t*)(((freeblockll_t*) ptr)->pageid))->numalloc)--;
 	//free a page if it has no allocated blocks
-	resolve();
+	freeunalloc();
 }
 
 /*initialize page */
-kma_page_t* initial(kma_page_t *page, int first)
+void initial(kma_page_t *page, int first)
 {
 	llheader_t *listheader;
 	*((kma_page_t**) page->ptr) = page;	
@@ -125,16 +125,16 @@ kma_page_t* initial(kma_page_t *page, int first)
 	listheader = (llheader_t*) (page->ptr); //set list header to base of page
 
 	//set header to right after initial data structure
-	listheader->header = (freeblockll_t*) ((long int) listheader + sizeof(llheader_t));
+	listheader->header = (freeblockll_t*) ((long) listheader + sizeof(llheader_t));
 
 	if (first)
 		entryptr = page;
 	//add the page to the ll
-	add(((void *) (listheader->header)), (PAGESIZE - sizeof(llheader_t)));
+	addtofreelist(((void *) (listheader->header)), (PAGESIZE - sizeof(llheader_t)));
 	(*listheader).numalloc = 0;
 	(*listheader).numpages = 0;
 
-	return page;
+	//return page;
 }
 
 /* return pointer to free space using first fit */
@@ -157,105 +157,107 @@ void *findfirstfit(int size)
 		{
 			if (blocksize == size || (blocksize - size) < sizeof(freeblockll_t))
 			{
-				//perfect fit or not enough space left, remove from list
+				//perfect fit or not enough space left, remove from list and do not add new entry to reflect a free block
 				remove(temp);
 				return ((void *) temp);
 			}
 			//else, free space and make new entry in ll
-			add((void *) ((long int) temp + size), blocksize - size);
+			addtofreelist((void *) ((long) temp + size), blocksize - size);
 			remove(temp);
 
 			return ((void *) temp);			
 		}
 		temp = temp->next;
 	}
-	initial(get_page(), 0); 	//didn't find fit, allocate new page, add to ll
+	initial(get_page(), 0); 	//didn't find fit, allocate new page, addtofreelist to ll
 	mainpage->numpages++;			//update number of pages
 	//return new ptr
 	return findfirstfit(size);
 }
 
-/* adds pointer to free space */
-void add(void *ptr, int size)
+/* addtofreelists pointer to free space */
+void addtofreelist(void *ptr, int size)
 {
 	llheader_t *mainpage;
-	mainpage = (llheader_t*)(entryptr->ptr);		//our ll
+	mainpage = (llheader_t*)(entryptr->ptr);		//llheader/first page
 
-	void *temp = (void*)(mainpage->header);				//header
+	void *temp = (void*)(mainpage->header);				//our ll
 
 	llheader_t *temppage;
 	freeblockll_t *thisptr;
-	long int i = ((long int) ptr - (long int) mainpage) / PAGESIZE;		//how far our page is by num of pages
+	long i = ((long) ptr - (long) mainpage) / PAGESIZE;		//how far our page is by num of pages
 
-	temppage = (llheader_t*)((long int) mainpage + i * PAGESIZE);		//page we are adding free resource to
+	temppage = (llheader_t*)((long) mainpage + i * PAGESIZE);		//page we are addtofreelisting free resource to
 	thisptr = (freeblockll_t*) ptr;
 	(*thisptr).pageid = temppage;
 
-	((freeblockll_t*)ptr)->size = size;
+	((freeblockll_t*)ptr)->size = size;		//set size of new block
 	((freeblockll_t*)ptr)->prev = NULL;
 
 	//if first entry
 	if (temp == ptr)
 	{
 		((freeblockll_t*)ptr)->next = NULL;
-		return;
 	}
 
-
-
-	//add any others
-	if (temp > ptr)		//if new memory comes before header
+	else if (temp > ptr)		//if new block comes before header
 	{
 		
-		int newblocksize = ((freeblockll_t*) ptr)->size;
-		void* nextblock = (void *) ((long int) ptr + newblocksize); 
-		if ((nextblock == ptr) && (((freeblockll_t*) nextblock)->pageid == ((freeblockll_t*)ptr)->pageid))
+		int newblocksize = ((freeblockll_t*) ptr)->size;			//size fo block to be added
+		void* nextblock = (void *) ((long) ptr + newblocksize); //pointer to adjacent block of memory
+		//check if adjacent block is in list, coalesce blocks if it is
+		if (((freeblockll_t*) (mainpage->header))->next != NULL && (nextblock == temp) && (((freeblockll_t*) nextblock)->pageid == ((freeblockll_t*)temp)->pageid))
 		{
-			freeblockll_t *nextnext = ((freeblockll_t*) (mainpage->header))->next;
-			nextnext->prev = ptr;
-			((freeblockll_t* )ptr)->next = nextnext;
+
+			freeblockll_t *newnext = ((freeblockll_t*) (mainpage->header))->next;
+			newnext->prev = ptr;
+			((freeblockll_t* )ptr)->next = newnext;
+			((freeblockll_t* )ptr)->size += ((freeblockll_t*) (mainpage->header))->size;			
 			mainpage->header = (freeblockll_t *)ptr;
 		}
-		else
+		else		//add block to list, set as new header
 		{
 			((freeblockll_t*) (mainpage->header))->prev = (freeblockll_t*)ptr;
 			((freeblockll_t*)ptr)->next = ((freeblockll_t*)(mainpage->header));
 			mainpage->header = (freeblockll_t*)ptr;	//set header to new ptr
 		}
 		
-		return;
 	}
-	//else find where to add by searching the list
-	freeblockll_t *tempnext;
-	while (((freeblockll_t *)temp)->next)
-	{
-		if (temp > ptr)
-			break;
-		temp = ((void *)(((freeblockll_t*)temp)->next));
-	}
-
-	int blocksize = ((freeblockll_t*) temp)->size;
-	void *nextblock = (void *) ((long int) temp + blocksize);
-
-	//coalesce adjacent free blocks
-	if ((nextblock == ptr) && (((freeblockll_t*)nextblock)->pageid == ((freeblockll_t*)ptr)->pageid))
-	{
-		((freeblockll_t*) temp)->size = blocksize + ((freeblockll_t*)ptr)->size;
-	}
-	else
-	{
-		tempnext = ((freeblockll_t*)temp)->next;
-		//add to list
-		((freeblockll_t*)temp)->next = ptr;
-		((freeblockll_t*)ptr)->next = tempnext;
-		((freeblockll_t*)ptr)->prev = temp;
-		if (tempnext)
-			tempnext->prev = ptr;
+	else 
+	{	//else find where to add by searching the list
+		while (((freeblockll_t *)temp)->next)
+		{
+			if (temp > ptr)
+				break;
+			temp = ((void *)(((freeblockll_t*)temp)->next));
 		}
+
+		int blocksize = ((freeblockll_t*) temp)->size;	//size of block in list behind block to be added
+		void *nextblock = (void *) ((long) temp + blocksize);	//pointer to adjacent block of memory
+
+		//if new block is next to old block, coalesce adjacent free blocks
+		if ((nextblock == ptr) && (((freeblockll_t*)nextblock)->pageid == ((freeblockll_t*)ptr)->pageid))
+		{
+			((freeblockll_t*) temp)->size = blocksize + ((freeblockll_t*)ptr)->size;
+
+
+		}
+		else
+		{
+			freeblockll_t *tempnext;
+			tempnext = ((freeblockll_t*)temp)->next;
+			//add to list
+			((freeblockll_t*)temp)->next = ptr;
+			((freeblockll_t*)ptr)->next = tempnext;
+			((freeblockll_t*)ptr)->prev = temp;
+			if (tempnext)
+				tempnext->prev = ptr;
+		}
+	}
 }
 
-/* resolves list, looks for unallocated pages and frees them */
-void resolve(void)
+/* looks for unallocated pages and frees them */
+void freeunalloc(void)
 {
 	llheader_t *mainpage;
 	mainpage = (llheader_t*)(entryptr->ptr);
@@ -267,7 +269,7 @@ void resolve(void)
 	do
 	{
 		cont = 0;
-		temppage = (((llheader_t*)((long int) mainpage + i * PAGESIZE)));		//get last page
+		temppage = (((llheader_t*)((long) mainpage + i * PAGESIZE)));		//get last page
 		freeblockll_t *temp = mainpage->header;		//get header to list
 		freeblockll_t *temp2;											//temp2 holds next entry in list
 		if (((llheader_t*)temppage)->numalloc == 0)		//if page has no allocs, first remove all pointers in list to that page
