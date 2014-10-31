@@ -1,5 +1,8 @@
 Resource Map
 
+Requested/Freed/In use
+Real/User/Sys
+
 Trace 1
 3/3/0
 0.01/0.00/0.01
@@ -21,3 +24,42 @@ Size information is kept in the free block itself and the beginning.
 The header to this linked list is kept at the beggining of the mainpage. List is maintained by the functiosn addtofreelist, remove, and freeunalloc. 
 Addtofreelist adds a free block to the list in order of increasing address. Blocks are ordered by increasing address in order to allow easy coalescing and more efficient memory utilizaiton. Remove takes a free block and removes it from the list. Freeunalloc is called whenever a free command is called and it will iterate through the pages looking for pages that have no allocated blocks and then free them. To free pages, we search through the list starting from the last page, if a page has numalloc =0, we first free pointers to blocks in that page and then the page itself. We keep searching through the pages until we find one where numalloc is greater than 0.
 We use the findfirstfit function for resource allocation. This function searches the free list for a block that is large enough to handle the malloc request. If found, the the block is returned, it is removed from the free list, and we try to add the remainder to our free list so we can perserve memory. If not found, we initialize a new page and call findfit again. 
+When memory is freed, the block is readded to the linked list. The list is a sorted linked list based on memory address so the allocator will place free blocks in their sorted position, the allocator also attemps to coalesce adjacent freek blocks next to each other. This is done during every free command.
+
+Analysis of Algorithm Performance:
+The resource map suffers from a great deal of fragmentation. Even though we coalesce free blocks it is still very easy for the memory to become fragmented after using this algorithm.
+
+The Resource Map is also not very efficient because each memory allocation requires traversal of the sorted linked list O(n) in order to find a fit. The allocator also suffers from the same drawback on freeing memory as the algorithm must traverse the sorted linked list to find a position to add the memory and also must check to see if their is an adjacent free block to coalesce.
+
+In general this allocator is slow due to the use of the linked list and linked list traversal which requires O(n) time
+
+
+Buddy List:
+
+Requested/Freed/In use
+Real/User/Sys
+
+Trace 1
+3/3/0
+.01/0/0
+
+Trace 2
+43/43/0
+.01/0/0
+
+Trace 3
+1374/1374/0
+.13/.07/.01
+
+Trace 4
+1244/1244/0
+.19/.12/.02
+
+Trace 5
+10054/10054/0
+.83/.47/.20
+
+For the buddy system, we still use the power of two. At the very beginning, we take a whole page to store all the information we need (for our implementation of lists). The first page is called mainpage. If it is full, we just alloc a new one and add it to the previous one's end. The mainpage keeps a track of the number of allocs for the entire program, and also has numpages to take account of the used pages which are under control of the mainpage. In the mainpage, there is a  array storing each page's headerlist km_page_t and the address and also the numalloc of that page and a bitmap which we will use for finding the buddy. For each data page, there is no header. So we can store up to 8192 bytes. When the request occurs, the algorithm will first check the header of free list. If hit, then alloc and we mark on the current  node in bitmap to indicate that the current block is being used. The bitmap has 64 unsigned char, so it has 512 bits (in our implementation every one bit represents a 16 byte block) that can cover the whole 8192 bytes.Otherwise, if we miss the current freelist, we can try a larger freelist and split it to two same size blocks. And we keep doing thic until we find the right blocks for the request.If none of this works we finally get a new page, and divide it in the same way for the large block to the right size block (we always break it down in this manner). Once we divide blocks, there must also be a combine method. We implemented this by having the block first look up the bitmap, and find its buddy, and try to combine both of them to a large one. 
+
+Analysis of Algorithm:
+The reason why buddy system create more pages than resource map because whenever a request is larger than 4096, the buddy system algorithm get a new page for such request. Moreover, we implements the roundup function for every request, which wastes many spaces. On the other hand, the buddy system has better runtime perfomance due to the bitmap. Because we can locate the free block in O(1) time, which definately affect the runtime of whole algorithm.
